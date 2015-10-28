@@ -2,8 +2,6 @@
 
 int main(int argc, char ** argv)
 {
-  printf("| Welcome to the Proxy Server! |\n");
-
   // Check for right number of parameters
   if (argc < 2) {
     printf("Please specify a port number\n");
@@ -12,7 +10,7 @@ int main(int argc, char ** argv)
 
   // set the port number
   int port_number;
-  port_number = atoi(argv[2]);
+  port_number = atoi(argv[1]);
 
-  printf("This is the specified port number: %d\n", port_number);
+  printf("Welcome to the Proxy Server running on port number: %d\n", port_number);
 }
