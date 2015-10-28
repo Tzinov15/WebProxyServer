@@ -6,7 +6,7 @@ Network Systems
 
 
 To Build:
-````make````
+  make
 
 To Run
-````./webproxy <port_number>````
+  ./webproxy <port_number>
