@@ -2,3 +2,11 @@ Alex Tzinov
 October 28th
 Web Proxy Server
 Network Systems
+
+
+
+To Build:
+````make````
+
+To Run
+````./webproxy <port_number>````
