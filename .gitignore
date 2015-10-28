@@ -1,0 +1,6 @@
+*
+!.gitignore
+!Makefile
+!webproxy.c
+!webproxy.h
+!README
