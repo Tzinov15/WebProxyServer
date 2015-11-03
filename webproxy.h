@@ -21,8 +21,9 @@ struct HTTP_RequestParams {
   char *relativeURI;
   char *httpversion;
   char *host;
-} params;
+};
 
+void construct_new_request(char *request, char *message, struct HTTP_RequestParams *params);
 void client_handler(int client);
 void extract_request_parameters(char *response, struct HTTP_RequestParams *params);
 int setup_socket(int port_number, int max_clients);

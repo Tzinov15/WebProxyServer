@@ -9,11 +9,11 @@ int main(int argc, char ** argv)
   }
 
   // set the port number, main socket
-  int port_number, main_socket, pid;
-  int cli_socket;
+  int port_number, main_socket, pid, cli_socket;
   struct sockaddr_in client;
   unsigned int sockaddr_len = sizeof(struct sockaddr_in);
   port_number = atoi(argv[1]);
+
   main_socket = setup_socket(port_number, MAX_CLIENTS);
 
   printf("Welcome to the Proxy Server running on port number: %d\n", port_number);
@@ -54,81 +54,116 @@ int main(int argc, char ** argv)
  * client_handler - this is the function that gets first called after setting up the master socket
  *------------------------------------------------------------------------------------------------*/
 void client_handler(int client) {
-  ssize_t read_size;
-  read_size = 0;
+  ssize_t read_size = 0;
+  struct HTTP_RequestParams params;
+  
   // client messge is used to store the full original message from client
-  char client_message[1024];
+  char client_message[1024], client_message_copy[1024], remote_request[1024];
   memset(&client_message, 0, sizeof(client_message));
-  //printf("About to read the client message...\n");
+  memset(&client_message_copy, 0, sizeof(client_message_copy));
+  memset(&remote_request, 0, sizeof(remote_request));
+
   read_size = recv(client, client_message, 1024, 0);
-  //printf("This is what was just ready from our web proxy server: \n%s\n", client_message);
+  //strcpy(client_message_copy, client_message);
   extract_request_parameters(client_message, &params);
-  //printf("THis is the method extracted from the request: %s\n", params.method);
-  //printf("THis is the full URI extracted from the request: %s\n", params.fullURI);
-  //printf("THis is the realtiveURI extracted from the request: %s\n", params.relativeURI);
-  //printf("THis is the httpversion extracted from the request: %s\n", params.httpversion);
-  //printf("THis is the host extracted from the request: %s\n", params.host);
+  printf("This is the method extracted from the request: %s\n", params.method);
+  printf("This is the full URI extracted from the request: %s\n", params.fullURI);
+  printf("This is the realtiveURI extracted from the request: %s\n", params.relativeURI);
+  printf("This is the httpversion extracted from the request: %s\n", params.httpversion);
+  printf("This is the host extracted from the request: %s\n", params.host);
+
+  construct_new_request(remote_request, client_message_copy, &params);
+  
+  // Free all the strings allocated for the HTTP params struct
   free(params.method);
   free(params.fullURI);
   free(params.relativeURI);
   free(params.httpversion);
   free(params.host);
 }
+void construct_new_request(char *request, char *message, struct HTTP_RequestParams *params) {
+  char *first_line, *rest_of_request;
+  printf("\n");
+  printf("\n");
+  printf("This is the old client request that I got from the client: \n%s\n", message);
+  /*
+  first_line = strtok_r(message, "\n", &rest_of_request);
+  message+=(strlen(first_line));
+  printf("This should be the rest of the body of the message: \n%s\n", message);
+  printf("As should this: \n%s\n", rest_of_request);
+  */
+  strncpy(request, params->method, strlen(params->method));
+  strncat(request, " ", 1);
+  strncat(request, params->relativeURI, strlen(params->relativeURI));
+  strncat(request, " ", 1);
+  strncat(request, params->httpversion, strlen(params->httpversion));
+  printf("This is the first line for the new request: \n%s\n", request);
+}
 
 /*-------------------------------------------------------------------------------------------------------------------------------------------
  * extract_request_parameters - this function will be mainly responsible for parsing and extracting the path from the HTTP request from the client
  *------------------------------------------------------------------------------------------------------------------------------------------- */
 void extract_request_parameters(char *response, struct HTTP_RequestParams *params) {
-  char *first_line, *rest_of_request, *method, *version, *uri, *host;
+  printf("hello\n");
+  char *first_line, *rest_of_request, *host;
 
   // first_line will contain the first line of the request, rest_of_request will contain the rest 
   first_line = strtok_r(response, "\n", &rest_of_request);
-  //printf("This should be the first line of the request: %s\n", first_line);
-  //printf("This should be the rest of the request: %s\n", rest_of_request);
+  printf("poop1\n");
 
-  // first_line will contain the first word of the first line of the request 
+  // first_line now contains the first word of the first line of the request 
   first_line = strtok(first_line, " ");
-  //printf("This should be the first word of the first line of the request: %s\n", first_line);
   params->method = malloc(strlen(first_line)+1);
   strcpy(params->method, first_line);
+  printf("poop2\n");
 
-  // first_line will contain the second word of the first line of the request 
+  // first_line now contains the second word of the first line of the request 
   first_line = strtok(NULL, " ");
-  //printf("This should be the second word of the first line of the request: %s\n", first_line);
   params->fullURI = malloc(strlen(first_line)+1);
   strcpy(params->fullURI, first_line);
+  printf("poop3\n");
 
+  // first_line now contains the third word of the first line of the request 
   first_line = strtok(NULL, " ");
-  // first_line will contain the third word of the first line of the request 
-  //printf("This should be the third word of the first line of the request: %s\n", first_line);
   params->httpversion = malloc(strlen(first_line)+1);
   strcpy(params->httpversion, first_line);
+  printf("poop4\n");
 
+  // host will contain the first word of the second line of the request
   host = strtok(rest_of_request, ":");
-  //printf("This should be the first word of the second line of the request: %s\n", host);
-  host = strtok(NULL, ":");
-  host = strtok(host, "\n");
-  deleteSubstring(host, " ");
-  //printf("This should be the second word of the second line of the request: %s\n", host);
+  // host will contain the second word of the second line of the request
+  host = strtok(NULL, "\n");
+
+  // remove the first character 
+  host++;
+  // remove the last character
+  host[strlen(host)-1] = 0;
+  printf("poop5\n");
+
   params->host = malloc(strlen(host)+1);
   strcpy(params->host, host);
+  printf("poop6\n");
 
-  char back_up_string[strlen(params->fullURI)];
-  strcpy(back_up_string, params->fullURI);
-  printf("This is the copied full path URI: %s\n", back_up_string);
+  // this string will hold the relative url of the file requested
+  char relative_url[strlen(params->fullURI)];
 
-  deleteSubstring(back_up_string, "http://");
-  printf("this should be path of our request without http: %s\n", back_up_string);
+  // start out by copying our full URL
+  strcpy(relative_url, params->fullURI);
+  printf("poop7\n");
 
-  params->host[strlen(params->host)-1] = 0;
-  printf("this should be our host name path: %s\n", params->host);
-
+  // delete the http:// portion that will exist on every full url
+  deleteSubstring(relative_url, "http://");
+  printf("poop8\n");
   
-  deleteSubstring(back_up_string, params->host);
-  printf("And this finally should be just the relative path of our request: %s\n", back_up_string);
-  params->relativeURI = malloc(strlen(relativeURI)+1);
-  strcpy(params->relativeURI, back_up_string);
+  // delete the host name from the full path to get just the relative path
+  printf("This is our relative url so far: %s\n", relative_url);
+  printf("This is our host: %s\n", params->host);
+  deleteSubstring(relative_url, params->host);
+  printf("This is our new relative url: %s\n", relative_url);
+  params->relativeURI = malloc(strlen(relative_url)+1);
+  strcpy(params->relativeURI, relative_url);
 
+  printf("bye\n");
 }
 
 /*----------------------------------------------------------------------------------------------
