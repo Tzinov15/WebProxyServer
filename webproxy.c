@@ -64,7 +64,7 @@ void client_handler(int client) {
   memset(&remote_request, 0, sizeof(remote_request));
 
   read_size = recv(client, client_message, 1024, 0);
-  //strcpy(client_message_copy, client_message);
+  strcpy(client_message_copy, client_message);
   extract_request_parameters(client_message, &params);
   printf("This is the method extracted from the request: %s\n", params.method);
   printf("This is the full URI extracted from the request: %s\n", params.fullURI);
@@ -85,49 +85,40 @@ void construct_new_request(char *request, char *message, struct HTTP_RequestPara
   char *first_line, *rest_of_request;
   printf("\n");
   printf("\n");
-  printf("This is the old client request that I got from the client: \n%s\n", message);
-  /*
   first_line = strtok_r(message, "\n", &rest_of_request);
-  message+=(strlen(first_line));
-  printf("This should be the rest of the body of the message: \n%s\n", message);
-  printf("As should this: \n%s\n", rest_of_request);
-  */
   strncpy(request, params->method, strlen(params->method));
   strncat(request, " ", 1);
   strncat(request, params->relativeURI, strlen(params->relativeURI));
   strncat(request, " ", 1);
   strncat(request, params->httpversion, strlen(params->httpversion));
-  printf("This is the first line for the new request: \n%s\n", request);
+  strcat(request, "\n");
+  strncat(request, rest_of_request, strlen(rest_of_request));
+  printf("This should be our final request: \n%s\n", request);
 }
 
 /*-------------------------------------------------------------------------------------------------------------------------------------------
  * extract_request_parameters - this function will be mainly responsible for parsing and extracting the path from the HTTP request from the client
  *------------------------------------------------------------------------------------------------------------------------------------------- */
 void extract_request_parameters(char *response, struct HTTP_RequestParams *params) {
-  printf("hello\n");
   char *first_line, *rest_of_request, *host;
 
   // first_line will contain the first line of the request, rest_of_request will contain the rest 
   first_line = strtok_r(response, "\n", &rest_of_request);
-  printf("poop1\n");
 
   // first_line now contains the first word of the first line of the request 
   first_line = strtok(first_line, " ");
   params->method = malloc(strlen(first_line)+1);
   strcpy(params->method, first_line);
-  printf("poop2\n");
 
   // first_line now contains the second word of the first line of the request 
   first_line = strtok(NULL, " ");
   params->fullURI = malloc(strlen(first_line)+1);
   strcpy(params->fullURI, first_line);
-  printf("poop3\n");
 
   // first_line now contains the third word of the first line of the request 
   first_line = strtok(NULL, " ");
   params->httpversion = malloc(strlen(first_line)+1);
   strcpy(params->httpversion, first_line);
-  printf("poop4\n");
 
   // host will contain the first word of the second line of the request
   host = strtok(rest_of_request, ":");
@@ -138,32 +129,23 @@ void extract_request_parameters(char *response, struct HTTP_RequestParams *param
   host++;
   // remove the last character
   host[strlen(host)-1] = 0;
-  printf("poop5\n");
 
   params->host = malloc(strlen(host)+1);
   strcpy(params->host, host);
-  printf("poop6\n");
 
   // this string will hold the relative url of the file requested
   char relative_url[strlen(params->fullURI)];
 
   // start out by copying our full URL
   strcpy(relative_url, params->fullURI);
-  printf("poop7\n");
 
   // delete the http:// portion that will exist on every full url
   deleteSubstring(relative_url, "http://");
-  printf("poop8\n");
   
   // delete the host name from the full path to get just the relative path
-  printf("This is our relative url so far: %s\n", relative_url);
-  printf("This is our host: %s\n", params->host);
   deleteSubstring(relative_url, params->host);
-  printf("This is our new relative url: %s\n", relative_url);
   params->relativeURI = malloc(strlen(relative_url)+1);
   strcpy(params->relativeURI, relative_url);
-
-  printf("bye\n");
 }
 
 /*----------------------------------------------------------------------------------------------
