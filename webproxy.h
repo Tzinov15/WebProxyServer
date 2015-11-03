@@ -12,4 +12,18 @@
 #include<sys/stat.h>
 #include<openssl/md5.h>
 
+#define MAX_CLIENTS 5
+#define ERROR -1
 
+struct HTTP_RequestParams {
+  char *method;
+  char *fullURI;
+  char *relativeURI;
+  char *httpversion;
+  char *host;
+} params;
+
+void client_handler(int client);
+void extract_request_parameters(char *response, struct HTTP_RequestParams *params);
+int setup_socket(int port_number, int max_clients);
+void deleteSubstring(char *original_string,const char *sub_string);
