@@ -73,6 +73,8 @@ void client_handler(int client) {
   printf("This is the host extracted from the request: %s\n", params.host);
 
   construct_new_request(remote_request, client_message_copy, &params);
+  int remote_socket;
+  remote_socket = get_valid_remote_ip(params.host);
   
   // Free all the strings allocated for the HTTP params struct
   free(params.method);
@@ -80,6 +82,62 @@ void client_handler(int client) {
   free(params.relativeURI);
   free(params.httpversion);
   free(params.host);
+}
+int get_valid_remote_ip(char *hostname) {
+  printf("Hello from get_valid_remote_ip\n");
+
+  int server_socket;
+  struct addrinfo hints; // specify the parameters for this connection
+  struct addrinfo *list; // a list of returned addr structs
+  struct addrinfo *address_pointer; // the current address struct
+  int return_value;
+
+  char *server_name = "www.google.com";
+
+  memset(&hints, 0, sizeof(hints));
+  hints.ai_family = AF_INET;
+  hints.ai_socktype = SOCK_STREAM;
+  
+  // this will generate the linked list of addrinfo structs that each contain potential IP addresses for the given server_name
+  if ( (return_value = getaddrinfo(server_name, 0, &hints, &list)) != 0)
+  {
+    printf("error with getaddrinfo\n");
+    exit(1);
+  }
+
+  // iterate through each of the addrinfo structs and attempt to connect via socket
+  char possible_ip[NI_MAXHOST];
+  for (address_pointer = list; address_pointer != NULL; address_pointer = address_pointer->ai_next)
+  {
+    printf("Hello from the loop\n");
+    getnameinfo(address_pointer->ai_addr, address_pointer->ai_addrlen, possible_ip, sizeof(possible_ip), NULL, 0, NI_NUMERICHOST);
+    printf("THis is the potential IP: %s\n", possible_ip);
+    // if we cannot create a socket, continue to the next
+    if ((server_socket = socket(address_pointer->ai_family, address_pointer->ai_socktype, 0)) == -1) {
+      printf("Could not create socket\n");
+      continue;
+    }
+    // if we create a socket and are able to connect, break. We have a valid remote socket
+    if (connect(server_socket, address_pointer->ai_addr, address_pointer->ai_addrlen) == 0)  {
+      printf("Connected, should be breaking\n");
+      break;
+    }
+    // if we are able to create a socket but not connect, ditch the socket and try again on the next struct
+    close (server_socket);
+  }
+
+  if (address_pointer != NULL) {
+    char host[NI_MAXHOST];
+    getnameinfo(address_pointer->ai_addr, address_pointer->ai_addrlen, host, sizeof(host), NULL, 0, NI_NUMERICHOST);
+    printf("%s can be reached at %s\n", server_name, host);
+  }
+  else {
+    printf("No remote address found\n");
+    exit(1);
+  }
+
+  return server_socket;
+
 }
 void construct_new_request(char *request, char *message, struct HTTP_RequestParams *params) {
   char *first_line, *rest_of_request;

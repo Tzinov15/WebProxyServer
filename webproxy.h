@@ -1,3 +1,4 @@
+#include<netdb.h>
 #include<limits.h>
 #include<string.h>
 #include<stdio.h>
@@ -23,6 +24,7 @@ struct HTTP_RequestParams {
   char *host;
 };
 
+int get_valid_remote_ip(char *hostname);
 void construct_new_request(char *request, char *message, struct HTTP_RequestParams *params);
 void client_handler(int client);
 void extract_request_parameters(char *response, struct HTTP_RequestParams *params);
