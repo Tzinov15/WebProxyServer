@@ -80,19 +80,16 @@ void client_handler(int client) {
   // retrieve a valid remote socket connection 
 
   remote_socket = get_valid_remote_ip(params.host);
+
   send(remote_socket, remote_request, sizeof(remote_request), 0);
   response_read_size = recv(remote_socket, remote_response, 2048, 0);
-  send(client, remote_response, sizeof(remote_response), 0);
-  printf("Huh, we have a response from the server, here its is: \n %s\n", remote_response);
+  
+  send(client, remote_response, response_read_size, 0);
   memset(&remote_response, 0, sizeof(remote_response));
-  /*
-  while ( (response_read_size = recv(remote_socket, remote_response, 2048, 0)) != 0) {
-    printf("ANOTHER BUFFER OF SIZE 2048 BEING READ IN\n");
-    printf("%s", remote_response);
-    send(client, remote_response, sizeof(remote_response), 0);
+  while ( (response_read_size = recv(remote_socket, remote_response, 2048, 0)) > 0) {
+    send(client, remote_response, response_read_size, 0);
     memset(&remote_response, 0, sizeof(remote_response));
   }
-  */
 
   printf("All done reading information from remote server, yay\n");
 
@@ -104,6 +101,7 @@ void client_handler(int client) {
   free(params.httpversion);
   free(params.host);
   close(remote_socket);
+  close(client);
 }
 int get_valid_remote_ip(char *hostname) {
 
@@ -114,7 +112,7 @@ int get_valid_remote_ip(char *hostname) {
   hints.ai_family = AF_UNSPEC;
   hints.ai_socktype = SOCK_STREAM;
 
-  getaddrinfo("www.example.com", "http", &hints, &res);
+  getaddrinfo(hostname, "http", &hints, &res);
 
   sockfd = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
   if (sockfd == -1) {
