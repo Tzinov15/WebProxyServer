@@ -52,17 +52,21 @@ int main(int argc, char ** argv)
  * client_handler - this is the function that gets first called after setting up the master socket
  *------------------------------------------------------------------------------------------------*/
 void client_handler(int client) {
-  ssize_t read_size = 0;
+  printf("~~-->>>>>>> NEW CLIENT\n\n");
+  ssize_t response_read_size = 0;
+  ssize_t request_read_size = 0;
   struct HTTP_RequestParams params;
   
   // client messge is used to store the full original message from client
-  char client_message[1024], client_message_copy[1024], remote_request[1024];
+  char client_message[1024], client_message_copy[1024], remote_request[1024], remote_response[2048];
   memset(&client_message, 0, sizeof(client_message));
   memset(&client_message_copy, 0, sizeof(client_message_copy));
   memset(&remote_request, 0, sizeof(remote_request));
+  memset(&remote_response, 0, sizeof(remote_response));
 
   // receive / intercept the request from the client
-  read_size = recv(client, client_message, 1024, 0);
+  request_read_size = recv(client, client_message, 1024, 0);
+  printf("~~-->>>>>>> HERE IS THEIR REQUEST : \n%s\n", client_message);
   // make a copy of the client request since the original will be altered when calling strtok
   strcpy(client_message_copy, client_message);
   
@@ -71,10 +75,27 @@ void client_handler(int client) {
 
   // construct the new, relative path request that will be sent to the remote server
   construct_new_request(remote_request, client_message_copy, &params);
-  printf("This should be our remote request that we will be sending: \n%s\n", remote_request);
+  //printf("This should be our remote request that we will be sending: \n%s\n", remote_request);
   int remote_socket;
   // retrieve a valid remote socket connection 
-  // remote_socket = get_valid_remote_ip(params.host);
+
+  remote_socket = get_valid_remote_ip(params.host);
+  send(remote_socket, remote_request, sizeof(remote_request), 0);
+  response_read_size = recv(remote_socket, remote_response, 2048, 0);
+  send(client, remote_response, sizeof(remote_response), 0);
+  printf("Huh, we have a response from the server, here its is: \n %s\n", remote_response);
+  memset(&remote_response, 0, sizeof(remote_response));
+  /*
+  while ( (response_read_size = recv(remote_socket, remote_response, 2048, 0)) != 0) {
+    printf("ANOTHER BUFFER OF SIZE 2048 BEING READ IN\n");
+    printf("%s", remote_response);
+    send(client, remote_response, sizeof(remote_response), 0);
+    memset(&remote_response, 0, sizeof(remote_response));
+  }
+  */
+
+  printf("All done reading information from remote server, yay\n");
+
   
   // Free all the strings allocated for the HTTP params struct
   free(params.method);
@@ -82,62 +103,34 @@ void client_handler(int client) {
   free(params.relativeURI);
   free(params.httpversion);
   free(params.host);
+  close(remote_socket);
 }
 int get_valid_remote_ip(char *hostname) {
-  printf("Hello from get_valid_remote_ip\n");
 
-  int server_socket;
-  struct addrinfo hints; // specify the parameters for this connection
-  struct addrinfo *list; // a list of returned addr structs
-  struct addrinfo *address_pointer; // the current address struct
-  int return_value;
-
-  char *server_name = "www.google.com";
+  struct addrinfo hints, *res;
+  int sockfd;
 
   memset(&hints, 0, sizeof(hints));
-  hints.ai_family = AF_INET;
+  hints.ai_family = AF_UNSPEC;
   hints.ai_socktype = SOCK_STREAM;
-  
-  // this will generate the linked list of addrinfo structs that each contain potential IP addresses for the given server_name
-  if ( (return_value = getaddrinfo(server_name, 0, &hints, &list)) != 0)
-  {
-    printf("error with getaddrinfo\n");
+
+  getaddrinfo("www.example.com", "http", &hints, &res);
+
+  sockfd = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
+  if (sockfd == -1) {
+    printf("some error occured with socket\n");
     exit(1);
   }
 
-  // iterate through each of the addrinfo structs and attempt to connect via socket
-  char possible_ip[NI_MAXHOST];
-  for (address_pointer = list; address_pointer != NULL; address_pointer = address_pointer->ai_next)
+  if ( (connect(sockfd, res->ai_addr, res->ai_addrlen)) == -1)
   {
-    printf("Hello from the loop\n");
-    getnameinfo(address_pointer->ai_addr, address_pointer->ai_addrlen, possible_ip, sizeof(possible_ip), NULL, 0, NI_NUMERICHOST);
-    printf("THis is the potential IP: %s\n", possible_ip);
-    // if we cannot create a socket, continue to the next
-    if ((server_socket = socket(address_pointer->ai_family, address_pointer->ai_socktype, 0)) == -1) {
-      printf("Could not create socket\n");
-      continue;
-    }
-    // if we create a socket and are able to connect, break. We have a valid remote socket
-    if (connect(server_socket, address_pointer->ai_addr, address_pointer->ai_addrlen) == 0)  {
-      printf("Connected, should be breaking\n");
-      break;
-    }
-    // if we are able to create a socket but not connect, ditch the socket and try again on the next struct
-    close (server_socket);
-  }
-
-  if (address_pointer != NULL) {
-    char host[NI_MAXHOST];
-    getnameinfo(address_pointer->ai_addr, address_pointer->ai_addrlen, host, sizeof(host), NULL, 0, NI_NUMERICHOST);
-    printf("%s can be reached at %s\n", server_name, host);
-  }
-  else {
-    printf("No remote address found\n");
+    printf("some error occured with  connect \n");
     exit(1);
   }
 
-  return server_socket;
+  printf("Wow it seems like we have a valid remote connection\n");
 
+  return sockfd;
 }
 void construct_new_request(char *request, char *message, struct HTTP_RequestParams *params) {
   char *first_line, *rest_of_request;
