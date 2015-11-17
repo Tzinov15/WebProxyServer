@@ -2,18 +2,17 @@
 
 int main(int argc, char ** argv)
 {
-  // Check for right number of parameters
   if (argc < 2) {
     printf("Please specify a port number\n");
     exit(1); 
   }
 
-  // set the port number, main socket
+  // port_number used to store user input, main_socket used for listening for clients, pid for forking, cli_socket for individual client sockets
   int port_number, main_socket, pid, cli_socket;
   struct sockaddr_in client;
   unsigned int sockaddr_len = sizeof(struct sockaddr_in);
-  port_number = atoi(argv[1]);
 
+  port_number = atoi(argv[1]);
   main_socket = setup_socket(port_number, MAX_CLIENTS);
 
   printf("Welcome to the Proxy Server running on port number: %d\n", port_number);
@@ -49,7 +48,6 @@ int main(int argc, char ** argv)
 }
 
 
-
 /*------------------------------------------------------------------------------------------------
  * client_handler - this is the function that gets first called after setting up the master socket
  *------------------------------------------------------------------------------------------------*/
@@ -63,18 +61,20 @@ void client_handler(int client) {
   memset(&client_message_copy, 0, sizeof(client_message_copy));
   memset(&remote_request, 0, sizeof(remote_request));
 
+  // receive / intercept the request from the client
   read_size = recv(client, client_message, 1024, 0);
+  // make a copy of the client request since the original will be altered when calling strtok
   strcpy(client_message_copy, client_message);
+  
+  // parse the user request and get everything that we need from it 
   extract_request_parameters(client_message, &params);
-  printf("This is the method extracted from the request: %s\n", params.method);
-  printf("This is the full URI extracted from the request: %s\n", params.fullURI);
-  printf("This is the realtiveURI extracted from the request: %s\n", params.relativeURI);
-  printf("This is the httpversion extracted from the request: %s\n", params.httpversion);
-  printf("This is the host extracted from the request: %s\n", params.host);
 
+  // construct the new, relative path request that will be sent to the remote server
   construct_new_request(remote_request, client_message_copy, &params);
+  printf("This should be our remote request that we will be sending: \n%s\n", remote_request);
   int remote_socket;
-  remote_socket = get_valid_remote_ip(params.host);
+  // retrieve a valid remote socket connection 
+  // remote_socket = get_valid_remote_ip(params.host);
   
   // Free all the strings allocated for the HTTP params struct
   free(params.method);
@@ -141,8 +141,6 @@ int get_valid_remote_ip(char *hostname) {
 }
 void construct_new_request(char *request, char *message, struct HTTP_RequestParams *params) {
   char *first_line, *rest_of_request;
-  printf("\n");
-  printf("\n");
   first_line = strtok_r(message, "\n", &rest_of_request);
   strncpy(request, params->method, strlen(params->method));
   strncat(request, " ", 1);
@@ -151,7 +149,6 @@ void construct_new_request(char *request, char *message, struct HTTP_RequestPara
   strncat(request, params->httpversion, strlen(params->httpversion));
   strcat(request, "\n");
   strncat(request, rest_of_request, strlen(rest_of_request));
-  printf("This should be our final request: \n%s\n", request);
 }
 
 /*-------------------------------------------------------------------------------------------------------------------------------------------
