@@ -58,7 +58,7 @@ void client_handler(int client) {
   struct HTTP_RequestParams params;
   
   // client messge is used to store the full original message from client
-  char client_message[1024], client_message_copy[1024], remote_request[1024], remote_response[2048];
+  char client_message[1024], client_message_copy[1024], remote_request[1024], remote_response[1024];
   memset(&client_message, 0, sizeof(client_message));
   memset(&client_message_copy, 0, sizeof(client_message_copy));
   memset(&remote_request, 0, sizeof(remote_request));
@@ -67,6 +67,7 @@ void client_handler(int client) {
   // receive / intercept the request from the client
   request_read_size = recv(client, client_message, 1024, 0);
   printf("~~-->>>>>>> HERE IS THEIR REQUEST : \n%s\n", client_message);
+  printf("~~-->>>>>>>\n\n\n");
   // make a copy of the client request since the original will be altered when calling strtok
   strcpy(client_message_copy, client_message);
   
@@ -82,13 +83,20 @@ void client_handler(int client) {
   remote_socket = get_valid_remote_ip(params.host);
 
   send(remote_socket, remote_request, sizeof(remote_request), 0);
-  response_read_size = recv(remote_socket, remote_response, 2048, 0);
+  response_read_size = recv(remote_socket, remote_response, 1024, 0);
+  printf("Part 1 of the response: ======================================= \n%s\n", remote_response);
+  printf("Part 1 size: %zd\n\n", response_read_size);
   
   send(client, remote_response, response_read_size, 0);
   memset(&remote_response, 0, sizeof(remote_response));
-  while ( (response_read_size = recv(remote_socket, remote_response, 2048, 0)) > 0) {
+  int z = 2;
+  while ( (response_read_size = recv(remote_socket, remote_response, 1024, MSG_DONTWAIT)) > 0) {
+    printf("Part %d of the response: ====================================\n%s\n\n", z, remote_response);
+    printf("Part %d size: %zd\n", z, response_read_size);
     send(client, remote_response, response_read_size, 0);
     memset(&remote_response, 0, sizeof(remote_response));
+    z++;
+    sleep(1);
   }
 
   printf("All done reading information from remote server, yay\n");
