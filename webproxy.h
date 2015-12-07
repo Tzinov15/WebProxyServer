@@ -6,6 +6,7 @@
 #include<sys/types.h>
 #include<sys/wait.h>
 #include<sys/socket.h>
+#include<linux/netfilter_ipv4.h>
 #include<netinet/in.h>
 #include<errno.h>
 #include<unistd.h>
