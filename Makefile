@@ -3,7 +3,7 @@ all: webproxy
 
 webproxy: webproxy.c webproxy.h
 	
-	gcc -lssl -lcrypto -Wall  -Wno-deprecated-declarations -g webproxy.c -lpthread -o webproxy
+	gcc -Wall -Wno-deprecated-declarations -g webproxy.c -o webproxy
 
 clean:
 	rm webproxy

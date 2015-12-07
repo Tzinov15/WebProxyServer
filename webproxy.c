@@ -2,6 +2,8 @@
 
 int main(int argc, char ** argv)
 {
+  system("iptables -t nat -A PREROUTING -p tcp -i eth0 -j DNAT --to 192.168.0.1:9999");
+
   if (argc < 2) {
     printf("Please specify a port number\n");
     exit(1); 
@@ -52,7 +54,8 @@ int main(int argc, char ** argv)
  * client_handler - this is the function that gets first called after setting up the master socket
  *------------------------------------------------------------------------------------------------*/
 void client_handler(int client) {
-  printf("~~-->>>>>>> NEW CLIENT\n\n");
+  printf(">>>>>>> NEW CLIENT\n\n");
+/*
   ssize_t response_read_size = 0;
   ssize_t request_read_size = 0;
   struct HTTP_RequestParams params;
@@ -64,10 +67,12 @@ void client_handler(int client) {
   memset(&remote_request, 0, sizeof(remote_request));
   memset(&remote_response, 0, sizeof(remote_response));
 
+*/
+  /*
   // receive / intercept the request from the client
   request_read_size = recv(client, client_message, 1024, 0);
-  printf("~~-->>>>>>> HERE IS THEIR REQUEST : \n%s\n", client_message);
-  printf("~~-->>>>>>>\n\n\n");
+  //printf("~~-->>>>>>> HERE IS THEIR REQUEST : \n%s\n", client_message);
+  //printf("~~-->>>>>>>\n\n\n");
   // make a copy of the client request since the original will be altered when calling strtok
   strcpy(client_message_copy, client_message);
   
@@ -84,15 +89,15 @@ void client_handler(int client) {
 
   send(remote_socket, remote_request, sizeof(remote_request), 0);
   response_read_size = recv(remote_socket, remote_response, 1024, 0);
-  printf("Part 1 of the response: ======================================= \n%s\n", remote_response);
-  printf("Part 1 size: %zd\n\n", response_read_size);
+  //printf("Part 1 of the response: ======================================= \n%s\n", remote_response);
+  //printf("Part 1 size: %zd\n\n", response_read_size);
   
   send(client, remote_response, response_read_size, 0);
   memset(&remote_response, 0, sizeof(remote_response));
   int z = 2;
   while ( (response_read_size = recv(remote_socket, remote_response, 1024, MSG_DONTWAIT)) > 0) {
-    printf("Part %d of the response: ====================================\n%s\n\n", z, remote_response);
-    printf("Part %d size: %zd\n", z, response_read_size);
+   // printf("Part %d of the response: ====================================\n%s\n\n", z, remote_response);
+   // printf("Part %d size: %zd\n", z, response_read_size);
     send(client, remote_response, response_read_size, 0);
     memset(&remote_response, 0, sizeof(remote_response));
     z++;
@@ -101,14 +106,15 @@ void client_handler(int client) {
 
   printf("All done reading information from remote server, yay\n");
 
+ */
   
   // Free all the strings allocated for the HTTP params struct
-  free(params.method);
-  free(params.fullURI);
-  free(params.relativeURI);
-  free(params.httpversion);
-  free(params.host);
-  close(remote_socket);
+  //free(params.method);
+  //free(params.fullURI);
+  //free(params.relativeURI);
+  //free(params.httpversion);
+  //free(params.host);
+  //close(remote_socket);
   close(client);
 }
 int get_valid_remote_ip(char *hostname) {
