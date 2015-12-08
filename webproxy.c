@@ -53,39 +53,43 @@ int main(int argc, char ** argv)
 
 
 
-void return_socket_information(int sock) {
+void return_socket_information(int sock, char *ip_address_remote, int *port_remote, char *ip_address_client, int *port_client) {
 	socklen_t len;
 	struct sockaddr_storage addr;
 	char ipstr[INET6_ADDRSTRLEN];
-	int port, status;
+	int client_port, status;
 	len = sizeof(addr);
 	getpeername(sock, (struct sockaddr *)&addr, &len);
 	if ( (addr.ss_family = AF_INET) ) {
 		struct sockaddr_in *s = (struct sockaddr_in *)&addr;
-		port = ntohs(s->sin_port);
-		inet_ntop(AF_INET, &s->sin_addr, ipstr, sizeof ipstr);
+		client_port = ntohs(s->sin_port);
+		inet_ntop(AF_INET, &s->sin_addr, ip_address_client, 256);
 	}
 	else {
 		struct sockaddr_in6 *s = (struct sockaddr_in6 *)&addr;
-		port = ntohs(s->sin6_port); 	
-		inet_ntop(AF_INET6, &s->sin6_addr, ipstr, sizeof ipstr);
+		client_port = ntohs(s->sin6_port); 	
+		inet_ntop(AF_INET6, &s->sin6_addr, ip_address_client,256);
 	}
 
-	printf("Peer IP address: %s\n", ipstr);
-	printf("Peer port: %d\n", port);
+	*port_client = client_port;
+	//printf("Peer IP address: %s\n", ipstr);
+	//printf("Peer port: %d\n", client_port);
 
 	struct sockaddr_in destaddr;
 	socklen_t destlen = sizeof(destaddr);
 	char destinationName[256];
+	int portnumber;
 	destinationName[0] = '\0';
 	status = getsockopt(sock, SOL_IP,SO_ORIGINAL_DST, (struct sockaddr *) &destaddr, &destlen);
 		if (status == 0) {
-			inet_ntop(AF_INET, (void *) &destaddr.sin_addr, destinationName, 256);
-			int portnumber = ntohs(destaddr.sin_port);
-			ssize_t dl = strlen(destinationName);
-			sprintf(&destinationName[dl], ":%d", portnumber);
-			printf("Socket:: getsockopt : %s\n", destinationName);
+			inet_ntop(AF_INET, (void *) &destaddr.sin_addr, ip_address_remote, 256);
+			portnumber = ntohs(destaddr.sin_port);
+			//ssize_t dl = strlen(destinationName);
+			//sprintf(&destinationName[dl], ":%d", portnumber);
+			//printf("Socket:: getsockopt : %s\n", destinationName);
 		}
+	*port_remote = portnumber;
+	//setup_remote_socket(portnumber, destinationName);
 }
 
 
@@ -105,7 +109,14 @@ void client_handler(int client) {
 	memset(&remote_request, 0, sizeof(remote_request));
 	memset(&remote_response, 0, sizeof(remote_response));
 
-	return_socket_information(client);
+	char remote_ip_address[256], client_ip_address[256];
+	int remote_port_number, client_port_number;
+       return_socket_information(client, remote_ip_address, &remote_port_number, client_ip_address, &client_port_number);
+	printf("The returned remote ip address is: %s\n", remote_ip_address);
+	printf("The returned remote port number is: %d\n", remote_port_number);
+
+	printf("The returned client ip address is: %s\n", client_ip_address);
+	printf("The returned client port number is: %d\n", client_port_number);
 
 	//remote_socket = get_valid_remote_ip(params.host);
 	// receive / intercept the request from the client
@@ -185,6 +196,42 @@ int get_valid_remote_ip(char *hostname) {
 	return sockfd;
 }
 
+int setup_remote_socket(int port_number, char *ip_address) {
+
+	printf("Argument port_number :%d", port_number);
+	printf("Argument ip_address :%s", ip_address);
+
+	printf("Hello from setup_remote_socket\n");
+	/* The data structure used to hold the address/port information of the remote server-side socket */
+	struct sockaddr_in server;
+
+	/* This will be the socket descriptor that will be returned from the socket() call */
+	int sock;
+
+	/* Socket family is INET (used for Internet sockets) */
+	server.sin_family = AF_INET;
+
+	/* Apply the htons command to convert byte ordering of port number into Network Byte Ordering (Big Endian) */
+	server.sin_port = htons(port_number);
+
+	/* Set the IP address to be the IP address extracted from the clients original destination request */
+	inet_pton(AF_INET, ip_address, &(server.sin_addr));
+
+	/* Zero off remaining sockaddr_in structure so that it is the right size */
+	memset(server.sin_zero, '\0', sizeof(server.sin_zero));
+
+	/* Allocate the socket */
+	if ((sock = socket(AF_INET, SOCK_STREAM, 0)) == ERROR) {
+		perror("server socket: ");
+		exit(-1);
+	}
+
+	if (connect(sock, (struct sockaddr *)&server, sizeof(server)) < 0) 
+		printf("Can't connect to %s:%d\n", ip_address, port_number);
+	else
+		printf("succesfully connected to remote server!!! :) \n");
+	return sock;
+}
 /*----------------------------------------------------------------------------------------------
  * setup_socket - allocate and bind a server socket using TCP, then have it listen on the port
  *---------------------------------------------------------------------------------------------- */

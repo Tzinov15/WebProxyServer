@@ -25,6 +25,8 @@ struct HTTP_RequestParams {
   char *host;
 };
 
+void return_socket_information(int sock, char *ip_address_remote, int *port_remote, char *ip_address_client, int *port_client);
+int setup_remote_socket(int port_number, char *ip_address);
 int get_valid_remote_ip(char *hostname);
 void construct_new_request(char *request, char *message, struct HTTP_RequestParams *params);
 void client_handler(int client);
