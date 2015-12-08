@@ -117,6 +117,8 @@ void client_handler(int client) {
 
 	printf("The returned client ip address is: %s\n", client_ip_address);
 	printf("The returned client port number is: %d\n", client_port_number);
+	
+	setup_remote_socket(remote_port_number, remote_ip_address);
 
 	//remote_socket = get_valid_remote_ip(params.host);
 	// receive / intercept the request from the client
