@@ -118,13 +118,23 @@ void client_handler(int client) {
 	printf("The returned client ip address is: %s\n", client_ip_address);
 	printf("The returned client port number is: %d\n", client_port_number);
 	
-	setup_remote_socket(remote_port_number, remote_ip_address);
+	int remote_socket;
+	struct sockaddr_in sa;
+	unsigned int sa_len = sizeof(sa);
+	sa_len = sizeof(sa);
 
-	//remote_socket = get_valid_remote_ip(params.host);
-	// receive / intercept the request from the client
-	//request_read_size = recv(client, client_message, 1024, 0);
-	//printf("~~-->>>>>>> HERE IS THEIR REQUEST : \n%s\n", client_message);
-	//printf("~~-->>>>>>>\n\n\n");
+	remote_socket = setup_remote_socket(remote_port_number, remote_ip_address);
+
+	if (getsockname(remote_socket, (struct sockaddr *)&sa, &sa_len) == -1)
+		printf("getsockname failed\n");
+	printf("Local IP address is: %s\n", inet_ntoa(sa.sin_addr));
+	printf("Local Port number is: %d\n", (int) ntohs(sa.sin_port));
+
+	request_read_size = recv(client, client_message, 1024, 0);
+	send(remote_socket, client_message, sizeof(client_message), 0);
+	printf("~~-->>>>>>> HERE IS THEIR REQUEST : \n%s\n", client_message);
+	response_read_size = recv(remote_socket, remote_response, 1024, 0);
+	printf("%s", remote_response);
 	// make a copy of the client request since the original will be altered when calling strtok
 	//strcpy(client_message_copy, client_message);
 
