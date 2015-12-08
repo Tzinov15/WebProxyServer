@@ -130,11 +130,30 @@ void client_handler(int client) {
 	printf("Local IP address is: %s\n", inet_ntoa(sa.sin_addr));
 	printf("Local Port number is: %d\n", (int) ntohs(sa.sin_port));
 
-	request_read_size = recv(client, client_message, 1024, 0);
-	send(remote_socket, client_message, sizeof(client_message), 0);
-	printf("~~-->>>>>>> HERE IS THEIR REQUEST : \n%s\n", client_message);
-	response_read_size = recv(remote_socket, remote_response, 1024, 0);
-	printf("%s", remote_response);
+	ssize_t test_size = 0;
+	char test_buffer[1024];
+	
+	printf("about to start reading client\n");
+	while (1) {
+		printf("at the beinnign of the while loop\n");
+		sleep(1);
+		if ((request_read_size = recv(client, client_message, 1024, MSG_DONTWAIT)) <= 0) {
+			printf("no more to read, should be breaking\n");
+			break;
+		}
+		printf("this is the message from the client: >>> \n%s\n", client_message);
+		send(remote_socket, client_message, sizeof(client_message), 0);
+		memset(&client_message, 0, sizeof(client_message));
+		printf("done with the  iteration\n");
+	}
+	printf("done receiving from client and sending to server\n");
+	while (1) {
+		if ((response_read_size = recv(remote_socket, remote_response, 1024, 0)) <= 0)
+			break;
+		send(client, remote_response, sizeof(remote_response), 0);
+		memset(&remote_response, 0, sizeof(remote_response));
+	}
+	printf("done receiving response from server and sending to client\n");
 	// make a copy of the client request since the original will be altered when calling strtok
 	//strcpy(client_message_copy, client_message);
 
