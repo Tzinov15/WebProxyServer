@@ -98,7 +98,6 @@ void client_handler(int client) {
 	printf(">>>>>>> NEW CLIENT\n\n");
 	ssize_t response_read_size = 0;
 	ssize_t request_read_size = 0;
-	struct HTTP_RequestParams params;
 
 	// client messge is used to store the full original message from client
 	unsigned char client_message[1024], client_message_copy[1024], remote_request[1024], remote_response[1024];
@@ -111,6 +110,15 @@ void client_handler(int client) {
 	int remote_port_number, client_port_number;
 	return_socket_information(client, remote_ip_address, &remote_port_number, client_ip_address, &client_port_number);
 
+	time_t timer;
+	char time_buffer[26];
+	struct tm* tm_info;
+
+	time(&timer);
+	tm_info = localtime(&timer);
+
+	strftime(time_buffer, 26, "%H:%M:%S", tm_info);
+	printf("%s\n", time_buffer);
 	printf("Client IP Addresss: %s Client Port Number: %d\n", client_ip_address, client_port_number);
 	printf("Server IP Addresss: %s Server Port Number: %d\n", remote_ip_address, remote_port_number);
 
@@ -126,9 +134,10 @@ void client_handler(int client) {
 	//printf("Local IP address is: %s\n", inet_ntoa(sa.sin_addr));
 	//printf("Local Port number is: %d\n", (int) ntohs(sa.sin_port));
 
-	ssize_t test_size = 0;
 
 	errno = 0;
+	int total_bytes_sent_to_server = 0;
+	int total_bytes_sent_to_client = 0;
 	int bytes_sent_to_server;
 	int bytes_sent_to_client;
 	unsigned char *bufptr;
@@ -140,6 +149,7 @@ void client_handler(int client) {
 				bytes_sent_to_server = send(remote_socket, bufptr, request_read_size, 0); 
 				request_read_size -= bytes_sent_to_server;
 				bufptr += bytes_sent_to_server;
+				total_bytes_sent_to_server += bytes_sent_to_server;
 			} while(request_read_size > 0);
 		}
 		else if (request_read_size  <= 0){
@@ -156,6 +166,7 @@ void client_handler(int client) {
 				bytes_sent_to_client = send(client, bufptr, response_read_size, 0);
 				response_read_size -= bytes_sent_to_client;
 				bufptr += bytes_sent_to_client;
+				total_bytes_sent_to_client += bytes_sent_to_client;
 			} while(response_read_size > 0);
 		}
 		else if (response_read_size <= 0){
@@ -170,6 +181,7 @@ void client_handler(int client) {
 close(client);
 close(remote_socket);
 system("iptables -t nat -D PREROUTING -p tcp -i eth0 -j DNAT --to 192.168.0.1:9999");
+printf("Total Bytes Sent: %d Total Bytes Received: %d\n", total_bytes_sent_to_server, total_bytes_sent_to_client);
 }
 int get_valid_remote_ip(char *hostname) {
 
@@ -246,11 +258,12 @@ int setup_remote_socket(int port_number, char *ip_address) {
 	char dynamic_snat_rule[256];
 	sprintf(dynamic_snat_rule, "iptables -t nat -A POSTROUTING -p tcp -j SNAT --sport %d --to-source %s\n", (int) ntohs(sa.sin_port), "192.168.0.2");
 	system(dynamic_snat_rule);
-	if (connect(sock, (struct sockaddr *)&server, sizeof(server)) < 0) 
+	if (connect(sock, (struct sockaddr *)&server, sizeof(server)) < 0)  {
 		printf("Can't connect to %s:%d\n", ip_address, port_number);
+		return -1;
+	}
 	else
-		//printf("succesfully connected to remote server!!! :) \n");
-	return sock;
+		return sock;
 }
 /*----------------------------------------------------------------------------------------------
  * setup_socket - allocate and bind a server socket using TCP, then have it listen on the port
