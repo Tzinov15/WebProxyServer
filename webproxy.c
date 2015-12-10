@@ -81,13 +81,13 @@ void return_socket_information(int sock, char *ip_address_remote, int *port_remo
 	int portnumber;
 	destinationName[0] = '\0';
 	status = getsockopt(sock, SOL_IP,SO_ORIGINAL_DST, (struct sockaddr *) &destaddr, &destlen);
-		if (status == 0) {
-			inet_ntop(AF_INET, (void *) &destaddr.sin_addr, ip_address_remote, 256);
-			portnumber = ntohs(destaddr.sin_port);
-			//ssize_t dl = strlen(destinationName);
-			//sprintf(&destinationName[dl], ":%d", portnumber);
-			//printf("Socket:: getsockopt : %s\n", destinationName);
-		}
+	if (status == 0) {
+		inet_ntop(AF_INET, (void *) &destaddr.sin_addr, ip_address_remote, 256);
+		portnumber = ntohs(destaddr.sin_port);
+		//ssize_t dl = strlen(destinationName);
+		//sprintf(&destinationName[dl], ":%d", portnumber);
+		//printf("Socket:: getsockopt : %s\n", destinationName);
+	}
 	*port_remote = portnumber;
 }
 
@@ -110,11 +110,11 @@ void client_handler(int client) {
 
 	char remote_ip_address[256], client_ip_address[256];
 	int remote_port_number, client_port_number;
-       return_socket_information(client, remote_ip_address, &remote_port_number, client_ip_address, &client_port_number);
+	return_socket_information(client, remote_ip_address, &remote_port_number, client_ip_address, &client_port_number);
 
 	printf("Client IP Addresss: %s Client Port Number: %d\n", client_ip_address, client_port_number);
 	printf("Server IP Addresss: %s Server Port Number: %d\n", remote_ip_address, remote_port_number);
-	
+
 	int remote_socket;
 	struct sockaddr_in sa;
 	unsigned int sa_len = sizeof(sa);
@@ -130,42 +130,44 @@ void client_handler(int client) {
 	ssize_t test_size = 0;
 	char test_buffer[1024];
 
-	printf("about to start reading client\n");
-	printf("at the beinnign of the while loop\n");
+	printf("about to start reading client\n\n\n");
+	errno = 0;
 	while (1) {
 		sleep(1);
+		request_read_size = recv(client, client_message, 1024, MSG_DONTWAIT);
+		if (request_read_size > 0) {
+			do {
+				printf("This is the message from the client: >>> \n%s\n", client_message);
+				send(remote_socket, client_message, sizeof(client_message), 0);
+				memset(&client_message, 0, sizeof(client_message));
+			} while( (request_read_size = recv(client, client_message, 1024, MSG_DONTWAIT | MSG_PEEK)) > 0);
+		}
 		if ( ((request_read_size = recv(client, client_message, 1024, MSG_DONTWAIT)) == 0)){
-			printf("client received a zero, that means the client closed the connection. Breaking\n"); 	
+			printf("client received a zero, client closed the connection. Breaking\n"); 	
 			shutdown(remote_socket, SHUT_WR);
 			break;
 		}
 		if ( (errno == EAGAIN) || (errno == EWOULDBLOCK) )
-			printf("errno is set to EAGAIN or EWOULDBLOCK, going to keep looping\n");
-		printf("this is the message from the client: >>> \n%s\n", client_message);
-		send(remote_socket, client_message, sizeof(client_message), 0);
-		memset(&client_message, 0, sizeof(client_message));
+			printf("errno from client recv is set to EAGAIN or EWOULDBLOCK, going to keep looping\n");
+
+		errno = 0;
+		response_read_size = recv(remote_socket, remote_response, 1024,MSG_DONTWAIT);
+		if (response_read_size > 0) {
+			do {
+				send(client, remote_response, sizeof(remote_response), 0);
+				memset(&remote_response, 0, sizeof(remote_response));
+			} while( (response_read_size = recv(remote_socket, remote_response, 1024, MSG_DONTWAIT | MSG_PEEK)) > 0);
+		}
 		if ( ((response_read_size = recv(remote_socket, remote_response, 1024,MSG_DONTWAIT)) ==0)) {
-			printf("server received a zero, that means the client closed the connection. Breaking\n"); 	
+			printf("server received a zero, server closed the connection. Breaking\n"); 	
 			shutdown(client, SHUT_WR);
 			close(client);
 			close(remote_socket);
 		}
 		if ( (errno == EAGAIN) || (errno == EWOULDBLOCK) )
-			printf("errno is set to EAGAIN or EWOULDBLOCK, going to keep looping\n");
-		send(client, remote_response, sizeof(remote_response), 0);
+			printf("errno from server is set to EAGAIN or EWOULDBLOCK, going to keep looping\n");
+		errno = 0;
 	}
-/*
-	printf("done receiving from client and sending to server\n");
-	while (1) {
-		if ( ((response_read_size = recv(remote_socket, remote_response, 1024, MSG_DONTWAIT)) < 0) && ( (errno!=EAGAIN) || (errno !=EWOULDBLOCK)) ) {
-			printf("no more to read, should be breaking\n");
-			break;
-		}
-		send(client, remote_response, sizeof(remote_response), 0);
-		memset(&remote_response, 0, sizeof(remote_response));
-	}
-	printf("done receiving response from server and sending to client\n");
-
 	// Free all the strings allocated for the HTTP params struct
 	//free(params.method);
 	//free(params.fullURI);
@@ -173,7 +175,6 @@ void client_handler(int client) {
 	//free(params.httpversion);
 	//free(params.host);
 	//close(remote_socket);
-	*/
 	system("iptables -t nat -D PREROUTING -p tcp -i eth0 -j DNAT --to 192.168.0.1:9999");
 	close(client);
 }
