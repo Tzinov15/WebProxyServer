@@ -56,7 +56,6 @@ int main(int argc, char ** argv)
 void return_socket_information(int sock, char *ip_address_remote, int *port_remote, char *ip_address_client, int *port_client) {
 	socklen_t len;
 	struct sockaddr_storage addr;
-	char ipstr[INET6_ADDRSTRLEN];
 	int client_port, status;
 	len = sizeof(addr);
 	getpeername(sock, (struct sockaddr *)&addr, &len);
@@ -102,7 +101,7 @@ void client_handler(int client) {
 	struct HTTP_RequestParams params;
 
 	// client messge is used to store the full original message from client
-	char client_message[1024], client_message_copy[1024], remote_request[1024], remote_response[1024];
+	unsigned char client_message[1024], client_message_copy[1024], remote_request[1024], remote_response[1024];
 	memset(&client_message, 0, sizeof(client_message));
 	memset(&client_message_copy, 0, sizeof(client_message_copy));
 	memset(&remote_request, 0, sizeof(remote_request));
@@ -128,46 +127,52 @@ void client_handler(int client) {
 	printf("Local Port number is: %d\n", (int) ntohs(sa.sin_port));
 
 	ssize_t test_size = 0;
-	char test_buffer[1024];
 
 	printf("about to start reading client\n\n\n");
 	errno = 0;
+	int bytes_sent_to_server;
+	int bytes_sent_to_client;
+	unsigned char *bufptr;
 	while (1) {
-		sleep(1);
 		request_read_size = recv(client, client_message, 1024, MSG_DONTWAIT);
+		bufptr = client_message;
 		if (request_read_size > 0) {
 			do {
-				printf("This is the message from the client: >>> \n%s\n", client_message);
-				send(remote_socket, client_message, sizeof(client_message), 0);
-				memset(&client_message, 0, sizeof(client_message));
-			} while( (request_read_size = recv(client, client_message, 1024, MSG_DONTWAIT | MSG_PEEK)) > 0);
+				bytes_sent_to_server = send(remote_socket, bufptr, request_read_size, 0); 
+				request_read_size -= bytes_sent_to_server;
+				bufptr += bytes_sent_to_server;
+			} while(request_read_size > 0);
 		}
-		if ( ((request_read_size = recv(client, client_message, 1024, MSG_DONTWAIT)) == 0)){
-			printf("client received a zero, client closed the connection. Breaking\n"); 	
-			shutdown(remote_socket, SHUT_WR);
-			break;
+		else if (request_read_size  <= 0){
+			if (request_read_size == 0) {
+				printf("client received a zero, client closed the connection. Breaking\n"); 	
+				shutdown(remote_socket, SHUT_WR);
+			}
+			else if (errno != EWOULDBLOCK && errno == EAGAIN) break;
 		}
-		if ( (errno == EAGAIN) || (errno == EWOULDBLOCK) )
-			printf("errno from client recv is set to EAGAIN or EWOULDBLOCK, going to keep looping\n");
-
 		errno = 0;
 		response_read_size = recv(remote_socket, remote_response, 1024,MSG_DONTWAIT);
+		bufptr = remote_response;
 		if (response_read_size > 0) {
 			do {
-				send(client, remote_response, sizeof(remote_response), 0);
-				memset(&remote_response, 0, sizeof(remote_response));
-			} while( (response_read_size = recv(remote_socket, remote_response, 1024, MSG_DONTWAIT | MSG_PEEK)) > 0);
+				bytes_sent_to_client = send(client, bufptr, response_read_size, 0);
+				response_read_size -= bytes_sent_to_client;
+				bufptr += bytes_sent_to_client;
+			} while(response_read_size > 0);
 		}
-		if ( ((response_read_size = recv(remote_socket, remote_response, 1024,MSG_DONTWAIT)) ==0)) {
-			printf("server received a zero, server closed the connection. Breaking\n"); 	
-			shutdown(client, SHUT_WR);
-			close(client);
-			close(remote_socket);
+		else if (response_read_size <= 0){
+			if (response_read_size == 0) {
+				printf("server received a zero, server closed the connection. Breaking\n"); 	
+				shutdown(client, SHUT_WR);
+				break;
+			}
+			else if (errno != EWOULDBLOCK && errno == EAGAIN) break;
 		}
-		if ( (errno == EAGAIN) || (errno == EWOULDBLOCK) )
-			printf("errno from server is set to EAGAIN or EWOULDBLOCK, going to keep looping\n");
-		errno = 0;
+	errno = 0;
 	}
+close(client);
+close(remote_socket);
+	printf("shit, i broke out\n");
 	// Free all the strings allocated for the HTTP params struct
 	//free(params.method);
 	//free(params.fullURI);
@@ -266,7 +271,6 @@ int setup_remote_socket(int port_number, char *ip_address) {
 int setup_socket(int port_number, int max_clients)
 {
 	printf("Hello from setup_socket\n");
-	sleep (1);
 	/* The data structure used to hold the address/port information of the server-side socket */
 	struct sockaddr_in server;
 
