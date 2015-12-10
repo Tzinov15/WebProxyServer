@@ -123,12 +123,11 @@ void client_handler(int client) {
 
 	if (getsockname(remote_socket, (struct sockaddr *)&sa, &sa_len) == -1)
 		printf("getsockname failed\n");
-	printf("Local IP address is: %s\n", inet_ntoa(sa.sin_addr));
-	printf("Local Port number is: %d\n", (int) ntohs(sa.sin_port));
+	//printf("Local IP address is: %s\n", inet_ntoa(sa.sin_addr));
+	//printf("Local Port number is: %d\n", (int) ntohs(sa.sin_port));
 
 	ssize_t test_size = 0;
 
-	printf("about to start reading client\n\n\n");
 	errno = 0;
 	int bytes_sent_to_server;
 	int bytes_sent_to_client;
@@ -145,7 +144,6 @@ void client_handler(int client) {
 		}
 		else if (request_read_size  <= 0){
 			if (request_read_size == 0) {
-				printf("client received a zero, client closed the connection. Breaking\n"); 	
 				shutdown(remote_socket, SHUT_WR);
 			}
 			else if (errno != EWOULDBLOCK && errno == EAGAIN) break;
@@ -162,26 +160,16 @@ void client_handler(int client) {
 		}
 		else if (response_read_size <= 0){
 			if (response_read_size == 0) {
-				printf("server received a zero, server closed the connection. Breaking\n"); 	
 				shutdown(client, SHUT_WR);
 				break;
 			}
-			else if (errno != EWOULDBLOCK && errno == EAGAIN) break;
+			else if (errno != EWOULDBLOCK && errno != EAGAIN) break;
 		}
 	errno = 0;
 	}
 close(client);
 close(remote_socket);
-	printf("shit, i broke out\n");
-	// Free all the strings allocated for the HTTP params struct
-	//free(params.method);
-	//free(params.fullURI);
-	//free(params.relativeURI);
-	//free(params.httpversion);
-	//free(params.host);
-	//close(remote_socket);
-	system("iptables -t nat -D PREROUTING -p tcp -i eth0 -j DNAT --to 192.168.0.1:9999");
-	close(client);
+system("iptables -t nat -D PREROUTING -p tcp -i eth0 -j DNAT --to 192.168.0.1:9999");
 }
 int get_valid_remote_ip(char *hostname) {
 
@@ -206,7 +194,6 @@ int get_valid_remote_ip(char *hostname) {
 		exit(1);
 	}
 
-	printf("Wow it seems like we have a valid remote connection\n");
 
 	return sockfd;
 }
@@ -253,8 +240,8 @@ int setup_remote_socket(int port_number, char *ip_address) {
 	sa_len = sizeof(sa);
 	if (getsockname(sock, (struct sockaddr *)&sa, &sa_len) == -1)
 		printf("getsockname failed\n");
-	printf("Local IP address is: %s\n", inet_ntoa(sa.sin_addr));
-	printf("Local Port number is: %d\n", (int) ntohs(sa.sin_port));
+	//printf("Local IP address is: %s\n", inet_ntoa(sa.sin_addr));
+	//printf("Local Port number is: %d\n", (int) ntohs(sa.sin_port));
 
 	char dynamic_snat_rule[256];
 	sprintf(dynamic_snat_rule, "iptables -t nat -A POSTROUTING -p tcp -j SNAT --sport %d --to-source %s\n", (int) ntohs(sa.sin_port), "192.168.0.2");
@@ -262,7 +249,7 @@ int setup_remote_socket(int port_number, char *ip_address) {
 	if (connect(sock, (struct sockaddr *)&server, sizeof(server)) < 0) 
 		printf("Can't connect to %s:%d\n", ip_address, port_number);
 	else
-		printf("succesfully connected to remote server!!! :) \n");
+		//printf("succesfully connected to remote server!!! :) \n");
 	return sock;
 }
 /*----------------------------------------------------------------------------------------------
@@ -270,7 +257,7 @@ int setup_remote_socket(int port_number, char *ip_address) {
  *---------------------------------------------------------------------------------------------- */
 int setup_socket(int port_number, int max_clients)
 {
-	printf("Hello from setup_socket\n");
+	//printf("Hello from setup_socket\n");
 	/* The data structure used to hold the address/port information of the server-side socket */
 	struct sockaddr_in server;
 
