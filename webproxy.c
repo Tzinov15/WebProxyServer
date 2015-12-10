@@ -89,7 +89,6 @@ void return_socket_information(int sock, char *ip_address_remote, int *port_remo
 			//printf("Socket:: getsockopt : %s\n", destinationName);
 		}
 	*port_remote = portnumber;
-	//setup_remote_socket(portnumber, destinationName);
 }
 
 
@@ -112,11 +111,9 @@ void client_handler(int client) {
 	char remote_ip_address[256], client_ip_address[256];
 	int remote_port_number, client_port_number;
        return_socket_information(client, remote_ip_address, &remote_port_number, client_ip_address, &client_port_number);
-	printf("The returned remote ip address is: %s\n", remote_ip_address);
-	printf("The returned remote port number is: %d\n", remote_port_number);
 
-	printf("The returned client ip address is: %s\n", client_ip_address);
-	printf("The returned client port number is: %d\n", client_port_number);
+	printf("Client IP Addresss: %s Client Port Number: %d\n", client_ip_address, client_port_number);
+	printf("Server IP Addresss: %s Server Port Number: %d\n", remote_ip_address, remote_port_number);
 	
 	int remote_socket;
 	struct sockaddr_in sa;
@@ -132,62 +129,42 @@ void client_handler(int client) {
 
 	ssize_t test_size = 0;
 	char test_buffer[1024];
-	
+
 	printf("about to start reading client\n");
+	printf("at the beinnign of the while loop\n");
 	while (1) {
-		printf("at the beinnign of the while loop\n");
 		sleep(1);
-		if ((request_read_size = recv(client, client_message, 1024, MSG_DONTWAIT)) <= 0) {
-			printf("no more to read, should be breaking\n");
+		if ( ((request_read_size = recv(client, client_message, 1024, MSG_DONTWAIT)) == 0)){
+			printf("client received a zero, that means the client closed the connection. Breaking\n"); 	
+			shutdown(remote_socket, SHUT_WR);
 			break;
 		}
+		if ( (errno == EAGAIN) || (errno == EWOULDBLOCK) )
+			printf("errno is set to EAGAIN or EWOULDBLOCK, going to keep looping\n");
 		printf("this is the message from the client: >>> \n%s\n", client_message);
 		send(remote_socket, client_message, sizeof(client_message), 0);
 		memset(&client_message, 0, sizeof(client_message));
-		printf("done with the  iteration\n");
+		if ( ((response_read_size = recv(remote_socket, remote_response, 1024,MSG_DONTWAIT)) ==0)) {
+			printf("server received a zero, that means the client closed the connection. Breaking\n"); 	
+			shutdown(client, SHUT_WR);
+			close(client);
+			close(remote_socket);
+		}
+		if ( (errno == EAGAIN) || (errno == EWOULDBLOCK) )
+			printf("errno is set to EAGAIN or EWOULDBLOCK, going to keep looping\n");
+		send(client, remote_response, sizeof(remote_response), 0);
 	}
+/*
 	printf("done receiving from client and sending to server\n");
 	while (1) {
-		if ((response_read_size = recv(remote_socket, remote_response, 1024, 0)) <= 0)
+		if ( ((response_read_size = recv(remote_socket, remote_response, 1024, MSG_DONTWAIT)) < 0) && ( (errno!=EAGAIN) || (errno !=EWOULDBLOCK)) ) {
+			printf("no more to read, should be breaking\n");
 			break;
+		}
 		send(client, remote_response, sizeof(remote_response), 0);
 		memset(&remote_response, 0, sizeof(remote_response));
 	}
 	printf("done receiving response from server and sending to client\n");
-	// make a copy of the client request since the original will be altered when calling strtok
-	//strcpy(client_message_copy, client_message);
-
-	// parse the user request and get everything that we need from it 
-	/*
-		 extract_request_parameters(client_message, &params);
-
-	// construct the new, relative path request that will be sent to the remote server
-	construct_new_request(remote_request, client_message_copy, &params);
-	//printf("This should be our remote request that we will be sending: \n%s\n", remote_request);
-	int remote_socket;
-	// retrieve a valid remote socket connection 
-
-
-	send(remote_socket, remote_request, sizeof(remote_request), 0);
-	response_read_size = recv(remote_socket, remote_response, 1024, 0);
-	//printf("Part 1 of the response: ======================================= \n%s\n", remote_response);
-	//printf("Part 1 size: %zd\n\n", response_read_size);
-
-	send(client, remote_response, response_read_size, 0);
-	memset(&remote_response, 0, sizeof(remote_response));
-	int z = 2;
-	while ( (response_read_size = recv(remote_socket, remote_response, 1024, MSG_DONTWAIT)) > 0) {
-	// printf("Part %d of the response: ====================================\n%s\n\n", z, remote_response);
-	// printf("Part %d size: %zd\n", z, response_read_size);
-	send(client, remote_response, response_read_size, 0);
-	memset(&remote_response, 0, sizeof(remote_response));
-	z++;
-	sleep(1);
-	}
-
-	printf("All done reading information from remote server, yay\n");
-
-*/
 
 	// Free all the strings allocated for the HTTP params struct
 	//free(params.method);
@@ -196,7 +173,8 @@ void client_handler(int client) {
 	//free(params.httpversion);
 	//free(params.host);
 	//close(remote_socket);
-	//system("iptables -t nat -D PREROUTING -p tcp -i eth0 -j DNAT --to 192.168.0.1:9999");
+	*/
+	system("iptables -t nat -D PREROUTING -p tcp -i eth0 -j DNAT --to 192.168.0.1:9999");
 	close(client);
 }
 int get_valid_remote_ip(char *hostname) {
@@ -229,21 +207,25 @@ int get_valid_remote_ip(char *hostname) {
 
 int setup_remote_socket(int port_number, char *ip_address) {
 
-	printf("Argument port_number :%d", port_number);
-	printf("Argument ip_address :%s", ip_address);
+	//printf("Argument port_number :%d", port_number);
+	//printf("Argument ip_address :%s", ip_address);
 
-	printf("Hello from setup_remote_socket\n");
+	//printf("Hello from setup_remote_socket\n");
 	/* The data structure used to hold the address/port information of the remote server-side socket */
 	struct sockaddr_in server;
+	/* The data structure used to hold the address/port information of the local socket */
+	struct sockaddr_in local_port;
 
 	/* This will be the socket descriptor that will be returned from the socket() call */
 	int sock;
 
 	/* Socket family is INET (used for Internet sockets) */
 	server.sin_family = AF_INET;
+	local_port.sin_family = AF_INET;
 
 	/* Apply the htons command to convert byte ordering of port number into Network Byte Ordering (Big Endian) */
 	server.sin_port = htons(port_number);
+	local_port.sin_port = htons(0);
 
 	/* Set the IP address to be the IP address extracted from the clients original destination request */
 	inet_pton(AF_INET, ip_address, &(server.sin_addr));
@@ -257,6 +239,20 @@ int setup_remote_socket(int port_number, char *ip_address) {
 		exit(-1);
 	}
 
+	if (bind(sock, (struct sockaddr *)&local_port, sizeof(local_port)) < 0)
+		printf("can't bind to port :( \n");
+
+	struct sockaddr_in sa;
+	unsigned int sa_len = sizeof(sa);
+	sa_len = sizeof(sa);
+	if (getsockname(sock, (struct sockaddr *)&sa, &sa_len) == -1)
+		printf("getsockname failed\n");
+	printf("Local IP address is: %s\n", inet_ntoa(sa.sin_addr));
+	printf("Local Port number is: %d\n", (int) ntohs(sa.sin_port));
+
+	char dynamic_snat_rule[256];
+	sprintf(dynamic_snat_rule, "iptables -t nat -A POSTROUTING -p tcp -j SNAT --sport %d --to-source %s\n", (int) ntohs(sa.sin_port), "192.168.0.2");
+	system(dynamic_snat_rule);
 	if (connect(sock, (struct sockaddr *)&server, sizeof(server)) < 0) 
 		printf("Can't connect to %s:%d\n", ip_address, port_number);
 	else
